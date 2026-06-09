@@ -1,0 +1,32 @@
+# ─────────────────────────────────────────────────────────────
+# RAFAEL v2.0 — Dependencies
+# Python 3.11+ (tested on 3.14)
+# Install: pip install -r requirements.txt
+# ─────────────────────────────────────────────────────────────
+
+# AI / LLM
+anthropic>=0.40.0
+
+# Voice — STT (Google, no model download) + TTS (Edge)
+SpeechRecognition>=3.10.0
+edge-tts>=6.1.9
+sounddevice>=0.4.6
+soundfile>=0.12.1
+numpy>=1.24.0
+
+# System & app control
+pyautogui>=0.9.54
+pyperclip>=1.8.2
+psutil>=5.9.0
+pywin32>=306
+
+# Config & utilities
+pyyaml>=6.0.1
+python-dotenv>=1.0.0
+rich>=13.7.0
+
+# ─── Dev / Test (optional) ───────────────────────────────────
+# pytest>=8.0.0
+#
+# NOTE: tkinter — Python bilan birga keladi (standart kutubxona),
+#       alohida o'rnatish shart emas.

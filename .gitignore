@@ -1,0 +1,50 @@
+# ─── Maxfiy ma'lumotlar (HECH QACHON commit qilmang!) ───
+.env
+*.key
+*.pem
+
+# ─── Python ───
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# ─── Virtual environment ───
+venv/
+env/
+.venv/
+ENV/
+
+# ─── Test / cache ───
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# ─── Loyiha ma'lumotlari (mahalliy) ───
+logs/
+data/memory/*.json
+D:/tmp/
+tmp/
+*.log
+
+# ─── IDE ───
+.vscode/
+.idea/
+*.swp
+*~
+
+# ─── OS ───
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# ─── RAFAEL vaqtinchalik fayllari ───
+rafael_stt_*.wav
+rafael_*.mp3
+D:tmp*

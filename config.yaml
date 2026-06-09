@@ -1,0 +1,41 @@
+raphail:
+  name: "RAFAEL"
+  version: "2.0"
+  user_name: "Daler"
+  wake_words:
+    - "rafael"
+    - "рафаел"
+    - "рафаель"
+    - "raphael"
+    - "rafail"
+
+voice:
+  sample_rate: 16000
+  channels: 1
+  silence_threshold: 500
+  silence_duration: 2.2
+  max_record_seconds: 25
+  tts_voice_uz: "uz-UZ-MadinaNeural"
+  tts_voice_ru: "ru-RU-SvetlanaNeural"
+  tts_voice_en: "en-US-JennyNeural"
+  tts_rate: "+0%"
+  tts_volume: "+15%"
+
+ai:
+  model: "claude-opus-4-8"
+  max_tokens: 512
+  temperature: 0.7
+  context_window: 20
+
+system:
+  log_level: "INFO"
+  log_file: "logs/raphail.log"
+  memory_file: "data/memory/conversation.json"
+
+ui:
+  theme: "dark"
+  window_size: "520x720"
+  font_family: "Segoe UI"
+  font_size: 12
+  history_max_lines: 200
+  show_on_start: true
