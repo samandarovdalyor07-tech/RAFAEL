@@ -89,11 +89,21 @@ PLAY_WORDS = [
     "tingla","chalvorchi","eshit","ijro","kuy","ashula","qushiq",
     "qo'shiq","yangrat","radio",
 ]
-SHUTDOWN_WORDS = [
-    "o'chir","uchir","выключи","shutdown","выключить",
-    "noutbukni o'chir","kompni o'chir","kompyuterni o'chir",
-    "kompyuter o'chir","turn off","poweroff","o'chirib yubor","uchirgin",
+# Kompyuter konteksti — "o'chir" so'zini shutdown deb hisoblash uchun SHART.
+# Aks holda "telegramni o'chir" (ilovani yop) butun noutbukni o'chirib yuboradi!
+PC_CONTEXT = [
+    "kompyuter","kompyuterni","komp","kompni","noutbuk","noutbukni","notebook",
+    "pc","tizim","tizimni","sistema","компьютер","ноутбук","систему","системы",
 ]
+# Kontekstsiz ham aniq shutdown bo'ladigan iboralar
+SHUTDOWN_EXPLICIT = [
+    "shutdown","poweroff","power off","turn off","выключи компьютер",
+    "выключить","kompyuterni o'chir","noutbukni o'chir","kompni o'chir",
+    "kompyuter o'chir","o'chirib yubor",
+]
+# "o'chir" tipidagi fe'llar — faqat PC_CONTEXT bilan birga shutdown bo'ladi.
+# Yolg'iz (ilova nomi bilan) kelsa — bu close_app (ilovani yopish).
+SHUTDOWN_VERBS = ["o'chir","uchir","uchirgin","выключи"]
 RESTART_WORDS = [
     "qayta yoq","qayta ishga tushir","restart","перезагрузи","reboot",
     "перезагрузить","qayta ishga tushirish",
@@ -233,8 +243,9 @@ def _parse_one(text: str) -> Optional[dict]:
     if len(t) < 2:
         return None
 
-    # 1. SHUTDOWN
-    if _has(t, SHUTDOWN_WORDS):
+    # 1. SHUTDOWN — faqat ANIQ buyruq, YOKI "o'chir" + kompyuter konteksti.
+    #    "telegramni o'chir" → bu yerda SHUTDOWN bo'lmaydi, pastda close_app bo'ladi.
+    if _has(t, SHUTDOWN_EXPLICIT) or (_has(t, SHUTDOWN_VERBS) and _has(t, PC_CONTEXT)):
         return {"action": "shutdown"}
 
     # 2. RESTART

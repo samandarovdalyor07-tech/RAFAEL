@@ -75,6 +75,8 @@ RAFAEL salomlashadi va "Rafael" so'zini kutadi. Sinab ko'ring:
 | **Ovoz** | "Rafael, ovozni oshir" | Volume +5 |
 | **Bluetooth** | "Rafael, bluetooth och" | BT sozlamalari |
 | **Eslatma** | "Rafael, 30 minutdan keyin eslat" | Eslatma qo'yiladi |
+| **Tarjima** | "Rafael, will you come ni tarjima qil" | Tarjima qilib aytadi |
+| **Dars** | "Rafael, bu masalani yech" / "fotosintezni tushuntir" | Repetitor kabi tushuntiradi |
 | **Tizim** | "Rafael, kompyuterni o'chir" | Shutdown (3s) |
 | **To'xtatish** | "Rafael, to'xta" | Uxlash rejimi |
 

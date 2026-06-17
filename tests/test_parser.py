@@ -53,6 +53,13 @@ def test_shutdown():
         assert r is not None, f"Topilmadi: {t!r}"
         assert r[0]["action"] == "shutdown"
 
+def test_close_app_not_shutdown():
+    """XAVFLI BUG: 'telegramni o'chir' ilovani yopishi kerak, NOUTBUKNI EMAS."""
+    for t in ["telegramni o'chir", "chromeni o'chir", "vscode ni o'chir"]:
+        r = parse(t)
+        assert r is not None, f"Topilmadi: {t!r}"
+        assert r[0]["action"] == "close_app", f"XAVF! {t!r} → {r[0]['action']}"
+
 def test_volume():
     assert parse("ovoz oshir")[0]["action"] == "volume_up"
     assert parse("ovoz past")[0]["action"] == "volume_down"

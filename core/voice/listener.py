@@ -31,12 +31,36 @@ class VoiceListener:
 
         self._is_speaking = False           # Speaker.speak() tomonidan o'rnatiladi
         self._stop_event  = threading.Event()
+        self._calibrated  = False           # mikrofon shovqiniga moslashganmi
 
         self.recognizer = sr.Recognizer()
         self.recognizer.energy_threshold        = 300
         self.recognizer.dynamic_energy_threshold = True
 
         logger.info("VoiceListener tayyor (Google STT, amplitude-VAD).")
+
+    def _calibrate(self):
+        """Mikrofon shovqin darajasini o'lchab, eshitish bo'sag'asini moslaydi.
+
+        Qattiq belgilangan bo'sag'a (silence_threshold) ko'p mikrofonlar uchun
+        juda baland bo'lib, ovoz umuman yozilmasligiga sabab bo'ladi. Bu metod
+        atrof shovqinni o'lchab, bo'sag'ani avtomatik to'g'irlaydi.
+        """
+        try:
+            frames = int(self.sample_rate * 0.6)        # 0.6 soniya namuna
+            rec = sd.rec(frames, samplerate=self.sample_rate,
+                         channels=self.channels, dtype="int16")
+            sd.wait()
+            noise = float(np.abs(rec).mean())
+            # Bo'sag'a = shovqin*2.5 + zaxira; [120..900] oralig'ida cheklaymiz
+            self.silence_thresh = max(120.0, min(900.0, noise * 2.5 + 80.0))
+            logger.info(
+                f"Mikrofon kalibratsiya: shovqin={noise:.0f} "
+                f"→ bo'sag'a={self.silence_thresh:.0f}"
+            )
+        except Exception as e:
+            logger.warning(f"Kalibratsiya o'tkazib yuborildi: {e}")
+        self._calibrated = True
 
     # ─── External control ────────────────────────────────────────────────────
 
@@ -63,6 +87,10 @@ class VoiceListener:
         speech_cnt         = 0
         recording          = False
         started_at: float  = 0.0
+
+        # Birinchi marta — mikrofonni atrof shovqiniga moslaymiz
+        if not self._calibrated and not self._is_speaking:
+            self._calibrate()
 
         logger.debug("Ovoz kutilmoqda...")
 

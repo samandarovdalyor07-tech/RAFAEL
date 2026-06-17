@@ -52,6 +52,42 @@ def _is_reminder(text: str) -> bool:
     t = text.lower()
     return any(w in t for w in REMINDER_WORDS)
 
+# ── Tarjima ──────────────────────────────────────────────────────────────────
+TRANSLATE_WORDS = [
+    "tarjima qil","tarjima qilib ber","tarjima","translate","перевод","переведи",
+    "inglizchaga o'gir","inglizcha qil","o'zbekchaga o'gir","o'zbekcha qil",
+    "nima degani","nima deyiladi","qanday tarjima",
+]
+
+def _is_translate(text: str) -> bool:
+    t = text.lower()
+    return any(w in t for w in TRANSLATE_WORDS)
+
+def _extract_translate_phrase(text: str) -> str:
+    """Buyruqdan tarjima qilinadigan iborani ajratib oladi."""
+    t = text
+    for w in sorted(TRANSLATE_WORDS, key=len, reverse=True):
+        t = re.sub(re.escape(w), " ", t, flags=re.IGNORECASE)
+    # Yordamchi qo'shimchalarni tozalaymiz
+    for p in [" ni ", " ging ", " degan ", " sozni ", " so'zni ", " gapni ",
+              " iborani ", " degani "]:
+        t = t.replace(p, " ")
+    return re.sub(r"\s+", " ", t).strip(" ,.:-\"'")
+
+# ── Dars / o'qish yordami ────────────────────────────────────────────────────
+STUDY_WORDS = [
+    "tushuntir","tushuntirib ber","o'rgat","o'rgatib ber","misol yech",
+    "masalani yech","masala yech","yechib ber","hisoblab ber","isbotla",
+    "qanday yechiladi","qanday hisoblanadi","formula","teorema","qoidasini",
+    "explain","solve","homework","uy vazifa","uy ishi","dars ber","dars qil",
+    "matematika","fizika","kimyo","biologiya","geometriya","algebra",
+    "grammatika","ingliz tili qoida","masala",
+]
+
+def _is_study(text: str) -> bool:
+    t = text.lower()
+    return any(w in t for w in STUDY_WORDS)
+
 
 class RaphailAssistant:
     def __init__(self, config: dict,
@@ -194,6 +230,31 @@ class RaphailAssistant:
             await self._speak_and_emit(reply)
             return
 
+        # 2.5 TARJIMA — "tarjima qil ...", "... nima degani"
+        if _is_translate(text):
+            phrase = _extract_translate_phrase(text)
+            if not phrase:
+                await self._speak_and_emit("Nimani tarjima qilay?")
+                return
+            self._set_state("thinking")
+            self._emit("cmd", action="translate", detail=phrase)
+            result = await self.brain.translate(phrase)
+            self.memory.add_user(text)
+            self.memory.add_assistant(result)
+            await self._speak_and_emit(result)
+            return
+
+        # 2.6 DARS / O'QISH YORDAMI — repetitor rejimi (uzunroq, bosqichma-bosqich)
+        if _is_study(text):
+            self._set_state("thinking")
+            self._emit("cmd", action="study", detail=text)
+            history = self.memory.get_messages()
+            result  = await self.brain.tutor(text, history)
+            self.memory.add_user(text)
+            self.memory.add_assistant(result)
+            await self._speak_and_emit(result)
+            return
+
         # 3. PARSER (tez — millisekundlar, multi-command)
         commands = parse(text)
         if commands:
@@ -259,6 +320,7 @@ class RaphailAssistant:
         try:
             if a == "open_app":        return self.system.open_app(app)
             if a == "close_app":       return self.system.close_app(app)
+            if a == "reminder":        return self.reminders.add(cmd.get("text",""))
             if a == "shutdown":        return self.system.shutdown()
             if a == "restart":         return self.system.restart()
             if a == "sleep":           return self.system.sleep()

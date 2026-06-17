@@ -101,36 +101,79 @@ Kontakt qidirish:
 Xotira tozalash:
 {"action": "clear_memory"}
 
-ESLATMA: JSON ni har doim to'g'ri yozasan. Foydalanuvchi "o'chir", "yoq", "qidir", "och" kabi so'zlarni aytsa — JSON qaytarasan."""
+ESLATMA: JSON ni har doim to'g'ri yozasan. Foydalanuvchi "o'chir", "yoq", "qidir", "och" kabi so'zlarni aytsa — JSON qaytarasan.
+
+QO'SHIMCHA: Sen darslarda yordam bera olasan (masala yechish, mavzu tushuntirish) va tarjima qila olasan. Foydalanuvchi shuni so'rasa — yordam ber."""
+
+
+# ── Repetitor (dars yordami) uchun maxsus prompt ─────────────────────────────
+TUTOR_PROMPT = """Sen RAFAEL — sabrli, bilimdon repetitor (o'qituvchi)san. Daler o'qishda yordam so'rayapti: masala yechish, mavzu tushuntirish, til o'rganish, uy vazifasi.
+
+QOIDALAR:
+- O'zbek tilida tushuntir (savol boshqa tilda bo'lsa ham).
+- Bosqichma-bosqich, sodda tilda. Avval qisqa javob, keyin "qanday" qilib chiqqanini ko'rsat.
+- Masala bo'lsa: yechish qadamlarini tartib bilan ayt, oxirida natijani aniq ayt.
+- Bu OVOZ orqali eshitiladi: qisqa gaplar tuz. Belgi/formulalarni so'z bilan ayt (masalan "iks kvadrat", "ildiz ostida").
+- Juda cho'zma — 3 dan 8 gapgacha. Murakkab bo'lsa, oxirida "Davom etaymi?" deb so'ra.
+- Tayyor javobni shunchaki berma — tushunishiga yordam beradigan tarzda tushuntir."""
+
+
+# ── Tarjima uchun maxsus prompt ──────────────────────────────────────────────
+TRANSLATE_PROMPT = """Sen aniq tarjimonsan. Foydalanuvchi bergan matnni tarjima qil.
+
+QOIDALAR:
+- Agar matn O'ZBEK tilida bo'lsa → INGLIZ tiliga tarjima qil.
+- Agar matn INGLIZ yoki RUS tilida bo'lsa → O'ZBEK tiliga tarjima qil.
+- FAQAT tarjima natijasini qaytar — ortiqcha izoh, "mana tarjima" kabi gaplar YO'Q.
+- Qisqa bir-ikki so'z bo'lsa, qavs ichida talaffuzini qo'shishing mumkin.
+- Matn allaqachon ikki tilda bo'lsa yoki tushunarsiz bo'lsa, eng mantiqiy tarjimani ber."""
 
 
 class RaphailBrain:
     def __init__(self, config: dict):
-        self.model      = config.get("model", "claude-opus-4-8")
-        self.max_tokens = config.get("max_tokens", 1024)
-        self.client     = anthropic.Anthropic()
+        self.model            = config.get("model", "claude-opus-4-8")
+        self.max_tokens       = config.get("max_tokens", 1024)
+        self.study_max_tokens = config.get("study_max_tokens", 700)
+        self.client           = anthropic.Anthropic()
         logger.info(f"LLM: {self.model}")
 
+    # ─── Oddiy suhbat / buyruq ───────────────────────────────────────────────
     async def think(self, user_message: str, history: list[dict]) -> str:
         import asyncio
         return await asyncio.get_event_loop().run_in_executor(
-            None, self._call, user_message, history
+            None, self._call, SYSTEM_PROMPT, user_message, history, self.max_tokens
         )
 
-    def _call(self, msg: str, history: list[dict]) -> str:
+    # ─── Dars yordami (repetitor) ────────────────────────────────────────────
+    async def tutor(self, question: str, history: list[dict]) -> str:
+        import asyncio
+        return await asyncio.get_event_loop().run_in_executor(
+            None, self._call, TUTOR_PROMPT, question, history, self.study_max_tokens
+        )
+
+    # ─── Tarjima ─────────────────────────────────────────────────────────────
+    async def translate(self, text: str) -> str:
+        import asyncio
+        return await asyncio.get_event_loop().run_in_executor(
+            None, self._call, TRANSLATE_PROMPT, text, [], 400
+        )
+
+    # ─── Umumiy chaqiruv ─────────────────────────────────────────────────────
+    def _call(self, system: str, msg: str, history: list[dict],
+              max_tokens: int) -> str:
         try:
             msgs = list(history) + [{"role": "user", "content": msg}]
             r = self.client.messages.create(
                 model=self.model,
-                max_tokens=self.max_tokens,
-                system=SYSTEM_PROMPT,
+                max_tokens=max_tokens,
+                system=system,
                 messages=msgs,
             )
             return r.content[0].text
         except anthropic.AuthenticationError:
             return "API kalit xato. .env faylini tekshiring."
         except anthropic.RateLimitError:
-            return "Biroz kuting — so'rovlar limiti doldi."
+            return "Biroz kuting — so'rovlar limiti to'ldi."
         except Exception as e:
             logger.error(f"LLM xatosi: {e}")
             return "Tizim xatosi yuz berdi."

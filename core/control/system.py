@@ -170,7 +170,10 @@ class SystemController:
             return f"Xato: {e}"
 
     def get_time(self) -> str:
-        return datetime.now().strftime("Soat %H:%M, %d %B %Y.")
+        oylar = ["", "yanvar", "fevral", "mart", "aprel", "may", "iyun",
+                 "iyul", "avgust", "sentyabr", "oktyabr", "noyabr", "dekabr"]
+        n = datetime.now()
+        return f"Soat {n.hour:02d}:{n.minute:02d}, {n.day}-{oylar[n.month]}."
 
     def screenshot(self, path: str = None) -> str:
         try:

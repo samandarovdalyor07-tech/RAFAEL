@@ -12,7 +12,7 @@ raphail:
 voice:
   sample_rate: 16000
   channels: 1
-  silence_threshold: 500
+  silence_threshold: 350      # boshlang'ich qiymat; mikrofonga qarab avto-moslashadi
   silence_duration: 2.2
   max_record_seconds: 25
   tts_voice_uz: "uz-UZ-MadinaNeural"
@@ -24,6 +24,7 @@ voice:
 ai:
   model: "claude-opus-4-8"
   max_tokens: 512
+  study_max_tokens: 700       # dars/o'qish yordami uchun uzunroq javob
   temperature: 0.7
   context_window: 20
 
