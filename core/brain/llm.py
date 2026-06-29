@@ -118,6 +118,18 @@ QOIDALAR:
 - Tayyor javobni shunchaki berma — tushunishiga yordam beradigan tarzda tushuntir."""
 
 
+# ── Ko'z (Vision) uchun maxsus prompt ────────────────────────────────────────
+VISION_PROMPT = """Sen RAFAEL — ekrandagi yoki rasmdagi narsani KO'RIB yordam beradigan assistentsan.
+
+QOIDALAR:
+- Rasmni diqqat bilan ko'r, keyin foydalanuvchi savoliga javob ber.
+- Agar MASALA (matematika, fizika...) bo'lsa → yech va qisqa tushuntir.
+- Agar XATO (error, qizil matn, traceback) bo'lsa → sababini va yechimini ayt.
+- Agar MATN bo'lsa → o'qib ber yoki kerak bo'lsa tarjima qil.
+- O'zbek tilida, QISQA va aniq (bu ovoz orqali eshitiladi). Belgi/formulalarni so'z bilan ayt.
+- Rasmda javob uchun kerakli narsa ko'rinmasa, ochiq ayt: "Ekranda buni ko'rmayapman"."""
+
+
 # ── Tarjima uchun maxsus prompt ──────────────────────────────────────────────
 TRANSLATE_PROMPT = """Sen aniq tarjimonsan. Foydalanuvchi bergan matnni tarjima qil.
 
@@ -138,17 +150,21 @@ class RaphailBrain:
         logger.info(f"LLM: {self.model}")
 
     # ─── Oddiy suhbat / buyruq ───────────────────────────────────────────────
-    async def think(self, user_message: str, history: list[dict]) -> str:
+    async def think(self, user_message: str, history: list[dict],
+                    facts: str = "") -> str:
         import asyncio
         return await asyncio.get_event_loop().run_in_executor(
-            None, self._call, SYSTEM_PROMPT, user_message, history, self.max_tokens
+            None, self._call, SYSTEM_PROMPT + facts, user_message, history,
+            self.max_tokens
         )
 
     # ─── Dars yordami (repetitor) ────────────────────────────────────────────
-    async def tutor(self, question: str, history: list[dict]) -> str:
+    async def tutor(self, question: str, history: list[dict],
+                    facts: str = "") -> str:
         import asyncio
         return await asyncio.get_event_loop().run_in_executor(
-            None, self._call, TUTOR_PROMPT, question, history, self.study_max_tokens
+            None, self._call, TUTOR_PROMPT + facts, question, history,
+            self.study_max_tokens
         )
 
     # ─── Tarjima ─────────────────────────────────────────────────────────────
@@ -157,6 +173,39 @@ class RaphailBrain:
         return await asyncio.get_event_loop().run_in_executor(
             None, self._call, TRANSLATE_PROMPT, text, [], 400
         )
+
+    # ─── Ko'z (Vision) — rasm/ekrani ko'rib javob berish ─────────────────────
+    async def see(self, question: str, image_b64: str,
+                  media_type: str = "image/png") -> str:
+        import asyncio
+        return await asyncio.get_event_loop().run_in_executor(
+            None, self._see_call, question, image_b64, media_type
+        )
+
+    def _see_call(self, question: str, image_b64: str, media_type: str) -> str:
+        try:
+            content = [
+                {"type": "image",
+                 "source": {"type": "base64",
+                            "media_type": media_type,
+                            "data": image_b64}},
+                {"type": "text",
+                 "text": question or "Ekranda nima ko'ryapsan? Menga yordam ber."},
+            ]
+            r = self.client.messages.create(
+                model=self.model,
+                max_tokens=self.study_max_tokens,
+                system=VISION_PROMPT,
+                messages=[{"role": "user", "content": content}],
+            )
+            return r.content[0].text
+        except anthropic.AuthenticationError:
+            return "API kalit xato. .env faylini tekshiring."
+        except anthropic.RateLimitError:
+            return "Biroz kuting — so'rovlar limiti to'ldi."
+        except Exception as e:
+            logger.error(f"Vision xatosi: {e}")
+            return "Ekranni ko'rishda xato yuz berdi."
 
     # ─── Umumiy chaqiruv ─────────────────────────────────────────────────────
     def _call(self, system: str, msg: str, history: list[dict],

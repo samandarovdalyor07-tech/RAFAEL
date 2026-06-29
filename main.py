@@ -40,10 +40,11 @@ def load_config() -> dict:
 def build_full_config(config: dict) -> dict:
     """Barcha sub-seksiyalarni yassi dictga birlashtiradi."""
     full = dict(config.get("raphail", {}))
-    full["voice"]  = config.get("voice",  {})
-    full["ai"]     = config.get("ai",     {})
-    full["system"] = config.get("system", {})
-    full["ui"]     = config.get("ui",     {})
+    full["voice"]        = config.get("voice",  {})
+    full["ai"]           = config.get("ai",     {})
+    full["system"]       = config.get("system", {})
+    full["ui"]           = config.get("ui",     {})
+    full["conversation"] = config.get("conversation", {})
     return full
 
 

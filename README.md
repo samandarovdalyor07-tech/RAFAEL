@@ -77,6 +77,11 @@ RAFAEL salomlashadi va "Rafael" so'zini kutadi. Sinab ko'ring:
 | **Eslatma** | "Rafael, 30 minutdan keyin eslat" | Eslatma qo'yiladi |
 | **Tarjima** | "Rafael, will you come ni tarjima qil" | Tarjima qilib aytadi |
 | **Dars** | "Rafael, bu masalani yech" / "fotosintezni tushuntir" | Repetitor kabi tushuntiradi |
+| **Ko'z (Vision)** | "Rafael, ekrandagi masalani o'qib yech" / "ekrandagi xatoni tushuntir" | Ekranni ko'rib javob beradi |
+| **Ob-havo** | "Rafael, Toshkentda ob-havo qanday" | wttr.in dan ob-havo |
+| **Valyuta** | "Rafael, dollar kursi qancha" | CBU dan so'm kursi |
+| **Ro'yxat** | "Rafael, ro'yxatga non qo'sh" / "ro'yxatni o'qi" | Todo ro'yxati |
+| **Xotira** | "Rafael, eslab qol — ertaga imtihonim bor" / "nimani eslaysan" | Uzoq muddatli xotira |
 | **Tizim** | "Rafael, kompyuterni o'chir" | Shutdown (3s) |
 | **To'xtatish** | "Rafael, to'xta" | Uxlash rejimi |
 
@@ -112,7 +117,7 @@ RAFAEL salomlashadi va "Rafael" so'zini kutadi. Sinab ko'ring:
 |--------|-------------|
 | UI | tkinter (Canvas animatsiya, glassmorphism) |
 | Backend | asyncio + threading |
-| STT (ovoz→matn) | SpeechRecognition + Google (model yuklamaydi) |
+| STT (ovoz→matn) | faster-whisper (offline, `uz`) + Google (zaxira) |
 | TTS (matn→ovoz) | edge-tts (uz-UZ-MadinaNeural) |
 | AI | Anthropic Claude (`claude-opus-4-8`) |
 | Xotira | JSON (suhbat tarixi) |

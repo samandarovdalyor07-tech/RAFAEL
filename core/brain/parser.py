@@ -146,6 +146,28 @@ REMINDER_WORDS    = [
     "eslatib qo'y","eslatma qo'y","soatda eslatib ber","da eslatib ber",
 ]
 BRIGHTNESS_WORDS  = ["yorqinlik","яркость","brightness","ekran yorqinligi"]
+WEATHER_WORDS = [
+    "ob-havo","obhavo","ob havo","havo qanday","havo qanaqa","havo qanday bugun",
+    "weather","погода","ob havo qanday","ob-havoni ayt",
+]
+CURRENCY_WORDS = [
+    "valyuta","valyuta kursi","kurs","dollar kursi","dollar nechi","dollar qancha",
+    "evro kursi","rubl kursi","курс","kursi qancha","dollarning kursi","valyutalar",
+    "dollar necha pul","necha pul dollar","valyuta kurslari",
+]
+NOTE_CLEAR_WORDS = [
+    "ro'yxatni tozala","ro'yxatni o'chir","ro'yxatni bo'shat","listni tozala",
+    "royxatni tozala","royxatni ochir","ro'yxatni tozalab tashla",
+]
+NOTE_LIST_WORDS = [
+    "ro'yxatni o'qi","ro'yxatda nima","ro'yxatni ayt","ro'yxatim","ro'yxatni ko'rsat",
+    "listni o'qi","royxatni oqi","ro'yxatni o'qib ber","royxatda nima",
+    "ro'yxatimda nima","listda nima",
+]
+NOTE_ADD_WORDS = [
+    "ro'yxatga qo'sh","ro'yxatga yoz","listga qo'sh","ro'yxatga kirit",
+    "royxatga qosh","royxatga yoz","ro'yxatga qo'shib qo'y","ro'yxatga","royxatga",
+]
 
 # Multi-command split tokens
 SPLIT_RE = re.compile(
@@ -234,6 +256,35 @@ def _extract_bt_device(text: str) -> Optional[str]:
     name = re.sub(r'\s+', ' ', t).strip(" ,.-")
     return name if len(name) > 1 else None
 
+def _extract_city(text: str) -> str:
+    """Ob-havo buyrug'idan shahar nomini ajratadi (bo'sh bo'lsa default)."""
+    t = " " + _l(text).replace("-", " ") + " "
+    # Ob-havoga oid barcha bo'laklarni alohida so'z sifatida olib tashlaymiz
+    junk = ["ob", "havo", "obhavo", "weather", "погода", "qanday", "qanaqa",
+            "bugun", "hozir", "ayt", "qani", "menga", "ertaga"]
+    for w in sorted(junk, key=len, reverse=True):
+        t = t.replace(f" {w} ", " ")
+    name = re.sub(r'\s+', ' ', t).strip(" ,.-")
+    name = re.sub(r'(da|de|да)$', '', name).strip()   # "toshkentda" → "toshkent"
+    return name
+
+def _detect_currency(text: str) -> str:
+    t = _l(text)
+    if any(w in t for w in ["evro", "eur", "euro", "евро"]):
+        return "eur"
+    if any(w in t for w in ["rubl", "rub", "рубл"]):
+        return "rub"
+    return "usd"
+
+def _extract_note(text: str) -> str:
+    """'ro'yxatga ... qo'sh' dan eslatma matnini ajratadi."""
+    t = " " + _l(text) + " "
+    for w in sorted(NOTE_ADD_WORDS, key=len, reverse=True):
+        t = t.replace(w, " ")
+    for p in [" qo'sh ", " qosh ", " yoz ", " kirit ", " ni ", " degan "]:
+        t = t.replace(p, " ")
+    return re.sub(r'\s+', ' ', t).strip(" ,.:-")
+
 
 # ══════════════════════════════════════════════════════════════
 #  BITTA SEGMENT UCHUN PARSE
@@ -259,6 +310,22 @@ def _parse_one(text: str) -> Optional[dict]:
     # 4. LOCK
     if _has(t, LOCK_WORDS):
         return {"action": "lock"}
+
+    # 4.1 OB-HAVO
+    if _has(t, WEATHER_WORDS):
+        return {"action": "weather", "city": _extract_city(t)}
+
+    # 4.2 VALYUTA KURSI
+    if _has(t, CURRENCY_WORDS):
+        return {"action": "currency", "which": _detect_currency(t)}
+
+    # 4.3 RO'YXAT (todo) — tozalash/o'qish/qo'shish
+    if _has(t, NOTE_CLEAR_WORDS):
+        return {"action": "note_clear"}
+    if _has(t, NOTE_LIST_WORDS):
+        return {"action": "note_list"}
+    if _has(t, NOTE_ADD_WORDS):
+        return {"action": "note_add", "text": _extract_note(t)}
 
     # 5. VAQT
     if _has(t, TIME_WORDS):
@@ -356,6 +423,13 @@ def parse(text: str) -> Optional[list]:
     """
     if not text:
         return None
+
+    # Ro'yxatga qo'shish — matnida "va" bo'lishi mumkin ("sut va non"),
+    # shuning uchun ko'p-buyruqga ajratmasdan butun matnni eslatma deb olamiz.
+    if _has(text, NOTE_ADD_WORDS) and not _has(text, NOTE_LIST_WORDS + NOTE_CLEAR_WORDS):
+        note = _extract_note(text)
+        if note:
+            return [{"action": "note_add", "text": note}]
 
     # Ko'p buyruqga ajrat
     segments = SPLIT_RE.split(text)

@@ -134,3 +134,26 @@ def test_lock():
     r = parse("ekranni qulflash")
     assert r is not None
     assert r[0]["action"] == "lock"
+
+def test_weather():
+    r = parse("toshkentda ob-havo qanday")
+    assert r is not None
+    assert r[0]["action"] == "weather"
+    assert r[0]["city"] == "toshkent"
+
+def test_currency():
+    assert parse("dollar kursi qancha")[0]["action"] == "currency"
+    assert parse("dollar kursi qancha")[0]["which"] == "usd"
+    assert parse("evro kursi")[0]["which"] == "eur"
+
+def test_note_add_with_va():
+    """'sut va non' bitta eslatma bo'lib qolishi kerak (va da bo'linmasin)."""
+    r = parse("ro'yxatga sut va non qo'sh")
+    assert r is not None
+    assert len(r) == 1
+    assert r[0]["action"] == "note_add"
+    assert "sut" in r[0]["text"] and "non" in r[0]["text"]
+
+def test_note_list_clear():
+    assert parse("ro'yxatni o'qi")[0]["action"] == "note_list"
+    assert parse("ro'yxatni tozala")[0]["action"] == "note_clear"

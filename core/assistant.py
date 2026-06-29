@@ -18,7 +18,10 @@ from core.brain.llm          import RaphailBrain
 from core.brain.memory       import ConversationMemory
 from core.brain.parser       import parse
 from core.brain.reminder     import ReminderManager
+from core.brain.notes        import NotesManager
+from core.brain.longterm     import LongTermMemory
 from core.control.system     import SystemController
+from core.control.info       import InfoController
 from core.control.browser    import BrowserController
 from core.control.code_writer import CodeWriter
 from core.control.messenger  import MessengerController
@@ -88,6 +91,53 @@ def _is_study(text: str) -> bool:
     t = text.lower()
     return any(w in t for w in STUDY_WORDS)
 
+# ── Ko'z (Vision) ─────────────────────────────────────────────────────────────
+VISION_WORDS = [
+    "ekranni o'qi","ekranda nima","ekrandagi","ekranni ko'r","ekranni ko'rib",
+    "ekranga qara","ekrandagi xato","ekrandagi masala","ekrandagini",
+    "skrinshotni o'qi","skrinshotni ko'r","rasmni o'qi","rasmni ko'r",
+    "rasmni tushuntir","nima yozilgan","buni o'qib ber","buni ko'rib ber",
+    "ekranni o'qib ber","ekrandagi kodni","ekrandagi matnni","look at screen",
+    "read the screen","what's on screen",
+]
+
+def _is_vision(text: str) -> bool:
+    t = text.lower()
+    return any(w in t for w in VISION_WORDS)
+
+# ── Uzoq muddatli xotira ──────────────────────────────────────────────────────
+REMEMBER_WORDS = [
+    "eslab qol","esingda tut","esda tut","yodda tut","yodingda tut","esingda saqla",
+    "eslab qolgin","remember that","remember","запомни",
+]
+RECALL_WORDS = [
+    "nimani eslaysan","nimalarni eslaysan","men haqimda nima","esingda nima bor",
+    "men haqimda nima bilasan","men haqimda nima eslaysan","what do you remember",
+    "menga oid nima eslaysan",
+]
+FORGET_WORDS = [
+    "eslaganlaringni unut","uzoq xotirani tozala","men haqimdagilarni unut",
+    "xotirangni tozala","забудь всё",
+]
+
+def _is_remember(text: str) -> bool:
+    return any(w in text.lower() for w in REMEMBER_WORDS)
+
+def _is_recall(text: str) -> bool:
+    return any(w in text.lower() for w in RECALL_WORDS)
+
+def _is_forget(text: str) -> bool:
+    return any(w in text.lower() for w in FORGET_WORDS)
+
+def _extract_fact(text: str) -> str:
+    """'eslab qol ...' dan eslab qolinadigan faktni ajratadi."""
+    t = text
+    for w in sorted(REMEMBER_WORDS, key=len, reverse=True):
+        t = re.sub(re.escape(w), " ", t, flags=re.IGNORECASE)
+    for p in [" ki ", " -ki ", " shuni ", " shu "]:
+        t = t.replace(p, " ")
+    return re.sub(r"\s+", " ", t).strip(" ,.:-")
+
 
 class RaphailAssistant:
     def __init__(self, config: dict,
@@ -99,6 +149,12 @@ class RaphailAssistant:
         self.stop_event  = stop_event or threading.Event()
         self.running     = False
         self.user        = config.get("user_name", "Daler")
+
+        # ── Tabiiy suhbat (follow-up) sozlamalari ──────────────────────────
+        conv = config.get("conversation", {})
+        self.followup_enabled = conv.get("followup", True)
+        self.followup_timeout = conv.get("followup_timeout", 7)
+        self.followup_rounds  = conv.get("followup_rounds", 4)
 
         # ── Ovoz ─────────────────────────────────────────────────────────
         self.speaker = VoiceSpeaker(
@@ -115,9 +171,12 @@ class RaphailAssistant:
             config["ai"].get("context_window", 20),
         )
         self.reminders = ReminderManager(speak_callback=self._speak_and_emit)
+        self.notes     = NotesManager()
+        self.longterm  = LongTermMemory()
 
         # ── Boshqaruv ─────────────────────────────────────────────────────
         self.system    = SystemController()
+        self.info      = InfoController()
         self.browser   = BrowserController()
         self.code      = CodeWriter()
         self.messenger = MessengerController()
@@ -143,6 +202,33 @@ class RaphailAssistant:
         self._set_state("speaking")
         await self.speaker.speak(text)
         self._set_state("sleeping")
+
+    # ─── Tabiiy suhbat (follow-up) ───────────────────────────────────────────
+
+    async def _conversation_followup(self):
+        """Buyruqdan keyin 'Rafael' demasdan suhbatni davom ettiradi.
+
+        Har raundda belgilangan vaqt kutadi; jim turilsa yoki to'xtatish
+        aytilsa — uxlash rejimiga qaytadi.
+        """
+        if not self.followup_enabled:
+            return
+
+        rounds = 0
+        while (self.running and not self.stop_event.is_set()
+               and rounds < self.followup_rounds):
+            self._set_state("listening")
+            follow = await self.listener.listen(idle_timeout=self.followup_timeout)
+            if not follow or not follow.strip():
+                break                       # jimlik — suhbat tugadi
+
+            # Follow-up'da wake-word shart emas, lekin aytilsa olib tashlaymiz
+            _, cleaned = contains_wake_word(follow)
+            cmd_text = cleaned.strip() or follow.strip()
+
+            self._emit("user", text=cmd_text)
+            await self._process(cmd_text)
+            rounds += 1
 
     # ─── Main loop ───────────────────────────────────────────────────────────
 
@@ -181,15 +267,13 @@ class RaphailAssistant:
                     self._emit("user", text=cleaned)
                     await self._process(cleaned)
                 else:
-                    # Faqat "Rafael" deyildi → kutamiz
+                    # Faqat "Rafael" deyildi → buyruqni follow-up kutadi
                     reply = f"Ha, {self.user}." if self.user else "Tinglamoqdaman."
                     await self._speak_and_emit(reply)
 
-                    self._set_state("listening")
-                    follow = await self.listener.listen()
-                    if follow and follow.strip():
-                        self._emit("user", text=follow)
-                        await self._process(follow)
+                # Tabiiy suhbat — har safar "Rafael" demasdan davom etish
+                if self.running:
+                    await self._conversation_followup()
 
                 self._set_state("sleeping")
 
@@ -221,6 +305,21 @@ class RaphailAssistant:
             self.running = False
             return
 
+        # 1.5 UZOQ XOTIRA — eslab qol / nimani eslaysan / unut
+        if _is_forget(text):
+            self._emit("cmd", action="forget", detail="")
+            await self._speak_and_emit(self.longterm.clear())
+            return
+        if _is_recall(text):
+            self._emit("cmd", action="recall", detail="")
+            await self._speak_and_emit(self.longterm.list_facts())
+            return
+        if _is_remember(text):
+            fact = _extract_fact(text)
+            self._emit("cmd", action="remember", detail=fact)
+            await self._speak_and_emit(self.longterm.add(fact))
+            return
+
         # 2. ESLATMA
         if _is_reminder(text):
             self._set_state("thinking")
@@ -244,12 +343,29 @@ class RaphailAssistant:
             await self._speak_and_emit(result)
             return
 
-        # 2.6 DARS / O'QISH YORDAMI — repetitor rejimi (uzunroq, bosqichma-bosqich)
+        # 2.6 KO'Z (Vision) — ekranni suratga olib, ko'rib javob berish
+        #     "study"dan oldin: "ekrandagi masalani yech" → masala emas, ekran
+        if _is_vision(text):
+            from core.control.vision import capture_screen_b64
+            self._set_state("thinking")
+            self._emit("cmd", action="vision", detail=text)
+            shot = capture_screen_b64()
+            if not shot:
+                await self._speak_and_emit("Ekranni suratga ololmadim, kechirasiz.")
+                return
+            img_b64, media = shot
+            result = await self.brain.see(text, img_b64, media)
+            self.memory.add_user(text)
+            self.memory.add_assistant(result)
+            await self._speak_and_emit(result)
+            return
+
+        # 2.7 DARS / O'QISH YORDAMI — repetitor rejimi (uzunroq, bosqichma-bosqich)
         if _is_study(text):
             self._set_state("thinking")
             self._emit("cmd", action="study", detail=text)
             history = self.memory.get_messages()
-            result  = await self.brain.tutor(text, history)
+            result  = await self.brain.tutor(text, history, self.longterm.as_context())
             self.memory.add_user(text)
             self.memory.add_assistant(result)
             await self._speak_and_emit(result)
@@ -295,7 +411,7 @@ class RaphailAssistant:
         # 5. LLM (murakkab savol / suhbat)
         self._set_state("thinking")
         history  = self.memory.get_messages()
-        response = await self.brain.think(text, history)
+        response = await self.brain.think(text, history, self.longterm.as_context())
         logger.info(f"LLM javob: {response[:100]!r}")
 
         llm_cmd = self._extract_json(response)
@@ -321,6 +437,11 @@ class RaphailAssistant:
             if a == "open_app":        return self.system.open_app(app)
             if a == "close_app":       return self.system.close_app(app)
             if a == "reminder":        return self.reminders.add(cmd.get("text",""))
+            if a == "weather":         return self.info.weather(cmd.get("city",""))
+            if a == "currency":        return self.info.currency(cmd.get("which","usd"))
+            if a == "note_add":        return self.notes.add(cmd.get("text",""))
+            if a == "note_list":       return self.notes.list_notes()
+            if a == "note_clear":      return self.notes.clear()
             if a == "shutdown":        return self.system.shutdown()
             if a == "restart":         return self.system.restart()
             if a == "sleep":           return self.system.sleep()

@@ -33,11 +33,58 @@ class VoiceListener:
         self._stop_event  = threading.Event()
         self._calibrated  = False           # mikrofon shovqiniga moslashganmi
 
+        # STT dvigateli: "whisper" (aniq, offline) yoki "google"
+        self.stt_engine          = v.get("stt_engine", "whisper")
+        self.whisper_model_name  = v.get("whisper_model", "small")
+        self.whisper_compute     = v.get("whisper_compute", "int8")
+        # Whisper o'zbekchani auto-rejimda ko'pincha arabcha deb xato aniqlaydi,
+        # shuning uchun tilni "uz" ga majburlaymiz. "" qilsangiz — avto aniqlash.
+        self.whisper_language    = v.get("whisper_language", "uz")
+        self._whisper            = None     # lazy yuklanadi
+
         self.recognizer = sr.Recognizer()
         self.recognizer.energy_threshold        = 300
         self.recognizer.dynamic_energy_threshold = True
 
-        logger.info("VoiceListener tayyor (Google STT, amplitude-VAD).")
+        logger.info(f"VoiceListener tayyor (STT: {self.stt_engine}, amplitude-VAD).")
+
+    def _load_whisper(self):
+        """Whisper modelini bir marta yuklaydi (birinchi marta internetdan)."""
+        if self._whisper is not None:
+            return
+        try:
+            from faster_whisper import WhisperModel
+            logger.info(
+                f"Whisper modeli yuklanmoqda: '{self.whisper_model_name}' "
+                f"(birinchi marta bir necha daqiqa yuklab olinishi mumkin)..."
+            )
+            self._whisper = WhisperModel(
+                self.whisper_model_name, device="cpu",
+                compute_type=self.whisper_compute,
+            )
+            logger.info("Whisper tayyor.")
+        except Exception as e:
+            logger.error(f"Whisper yuklanmadi, Google STT ga o'tildi: {e}")
+            self._whisper = None
+            self.stt_engine = "google"
+
+    def _transcribe_whisper(self, path: str) -> str | None:
+        """Whisper bilan transkripsiya (uz/ru/en avtomatik aniqlanadi)."""
+        self._load_whisper()
+        if self._whisper is None:
+            return None
+        try:
+            segments, info = self._whisper.transcribe(
+                path, beam_size=5, vad_filter=True,
+                language=self.whisper_language or None,
+            )
+            text = "".join(seg.text for seg in segments).strip()
+            if text:
+                logger.info(f"STT [whisper/{info.language}]: {text!r}")
+            return text or None
+        except Exception as e:
+            logger.error(f"Whisper transkripsiya xatosi: {e}")
+            return None
 
     def _calibrate(self):
         """Mikrofon shovqin darajasini o'lchab, eshitish bo'sag'asini moslaydi.
@@ -76,7 +123,7 @@ class VoiceListener:
     def _is_speech(self, frame: np.ndarray) -> bool:
         return float(np.abs(frame).mean()) > self.silence_thresh
 
-    def _record_until_silence(self) -> np.ndarray | None:
+    def _record_until_silence(self, idle_timeout: float | None = None) -> np.ndarray | None:
         frame_ms    = 30
         frame_size  = int(self.sample_rate * frame_ms / 1000)
         max_silence = int(self.silence_dur * 1000 / frame_ms)   # frames
@@ -87,6 +134,7 @@ class VoiceListener:
         speech_cnt         = 0
         recording          = False
         started_at: float  = 0.0
+        wait_start         = time.time()   # gapirish boshlanishini kutish vaqti
 
         # Birinchi marta — mikrofonni atrof shovqiniga moslaymiz
         if not self._calibrated and not self._is_speaking:
@@ -109,6 +157,12 @@ class VoiceListener:
                         silence_cnt = speech_cnt = 0
                         recording = False
                         continue
+
+                    # Follow-up: belgilangan vaqt ichida gapirilmasa — voz kechamiz
+                    if (not recording and idle_timeout is not None
+                            and (time.time() - wait_start) > idle_timeout):
+                        logger.debug("Follow-up: jimlik timeout — kutish to'xtatildi.")
+                        return None
 
                     # Maksimal muddat
                     if recording and (time.time() - started_at) > self.max_seconds:
@@ -160,10 +214,15 @@ class VoiceListener:
         path = None
         try:
             path = self._save_wav(audio)
+
+            # ── Whisper (aniq, offline) ──────────────────────────────────
+            if self.stt_engine == "whisper":
+                return self._transcribe_whisper(path)
+
+            # ── Google STT (eski yo'l) ───────────────────────────────────
             with sr.AudioFile(path) as src:
                 audio_data = self.recognizer.record(src)
 
-            # Bitta chaqiruv — Google o'zi tanlaydi (eng tez)
             # Fallback: 3 til ketma-ket (qaysi biri qaytarsa shu)
             for lang in ("uz-UZ", "ru-RU", "en-US"):
                 try:
@@ -192,10 +251,14 @@ class VoiceListener:
 
     # ─── Public async API ────────────────────────────────────────────────────
 
-    async def listen(self) -> str | None:
-        """Ovozni yozib, transkripsiya qilib qaytaradi (async)."""
+    async def listen(self, idle_timeout: float | None = None) -> str | None:
+        """Ovozni yozib, transkripsiya qilib qaytaradi (async).
+
+        idle_timeout berilsa va shu vaqt ichida hech kim gapirmasa — None
+        qaytaradi (follow-up suhbat rejimida ishlatiladi).
+        """
         loop = asyncio.get_event_loop()
-        audio = await loop.run_in_executor(None, self._record_until_silence)
+        audio = await loop.run_in_executor(None, self._record_until_silence, idle_timeout)
         if audio is None or len(audio) == 0:
             return None
         return await loop.run_in_executor(None, self._transcribe, audio)
