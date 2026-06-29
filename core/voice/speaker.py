@@ -72,8 +72,7 @@ class VoiceSpeaker:
                 self.on_speaking_start()
             self._speaking = True
 
-            os.makedirs("D:\\tmp", exist_ok=True)
-            with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False, dir="D:\\tmp") as f:
+            with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
                 tmp_path = f.name
 
             await edge_tts.Communicate(

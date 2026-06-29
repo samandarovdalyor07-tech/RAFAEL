@@ -8,6 +8,7 @@ import asyncio
 import threading
 import time
 import os
+import tempfile
 import wave
 import numpy as np
 import sounddevice as sd
@@ -16,8 +17,7 @@ from core.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-TMP_DIR = "D:\\tmp"
-os.makedirs(TMP_DIR, exist_ok=True)
+TMP_DIR = tempfile.gettempdir()
 
 
 class VoiceListener:
