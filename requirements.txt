@@ -5,7 +5,8 @@
 # ─────────────────────────────────────────────────────────────
 
 # AI / LLM
-anthropic>=0.40.0
+openai>=1.50.0
+requests>=2.31.0            # ob-havo / valyuta (core/control/info.py)
 
 # Voice — STT (Whisper offline / Google online) + TTS (Edge)
 faster-whisper>=1.0.0       # aniq, offline STT (ctranslate2, torch shart emas)

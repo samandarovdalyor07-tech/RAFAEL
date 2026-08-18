@@ -49,9 +49,9 @@ def build_full_config(config: dict) -> dict:
 
 
 def check_env():
-    key = os.getenv("ANTHROPIC_API_KEY", "").strip()
-    if not key or key.startswith("sk-proj"):
-        print("XATO: .env faylida ANTHROPIC_API_KEY (sk-ant-...) topilmadi!")
+    key = os.getenv("OPENAI_API_KEY", "").strip()
+    if not key:
+        print("XATO: .env faylida OPENAI_API_KEY topilmadi!")
         sys.exit(1)
 
 

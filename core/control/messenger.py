@@ -14,6 +14,29 @@ pyautogui.FAILSAFE = False
 pyautogui.PAUSE = 0.25
 
 
+def _save_clipboard():
+    """Ish boshlanishidan oldingi clipboard mazmunini saqlaydi."""
+    try:
+        return pyperclip.paste()
+    except Exception:
+        return None
+
+
+def _restore_clipboard(original):
+    """Foydalanuvchining asl clipboard mazmunini tiklaydi.
+
+    pyperclip.copy() foydalanuvchining clipboard'ini butunlay bosib
+    o'tadi; buni qaytarmasak, Rafael'dan foydalangandan keyin
+    foydalanuvchi nusxalagan narsa yo'qolib qoladi.
+    """
+    if original is None:
+        return
+    try:
+        pyperclip.copy(original)
+    except Exception:
+        pass
+
+
 def _find_telegram_window():
     """Telegram oynasini subprocess orqali topadi"""
     import ctypes
@@ -62,6 +85,7 @@ def _open_telegram():
 
 class MessengerController:
     def send_telegram(self, contact: str, message: str) -> str:
+        original_clip = _save_clipboard()
         try:
             if not _open_telegram():
                 return "Telegram ochilmadi."
@@ -93,8 +117,12 @@ class MessengerController:
         except Exception as e:
             logger.error(f"Telegram xato: {e}")
             return f"Xabar yuborishda muammo: Telegram ochiq bo'lsin."
+        finally:
+            time.sleep(0.15)
+            _restore_clipboard(original_clip)
 
     def open_telegram_contact(self, contact: str) -> str:
+        original_clip = _save_clipboard()
         try:
             if not _open_telegram():
                 return "Telegram ochilmadi."
@@ -109,8 +137,12 @@ class MessengerController:
             return f"{contact} bilan chat ochildi."
         except Exception as e:
             return f"Xato: {e}"
+        finally:
+            time.sleep(0.15)
+            _restore_clipboard(original_clip)
 
     def search_contact(self, name: str) -> str:
+        original_clip = _save_clipboard()
         try:
             if not _open_telegram():
                 return "Telegram ochilmadi."
@@ -122,3 +154,6 @@ class MessengerController:
             return f"{name} qidirildi."
         except Exception as e:
             return f"Xato: {e}"
+        finally:
+            time.sleep(0.15)
+            _restore_clipboard(original_clip)

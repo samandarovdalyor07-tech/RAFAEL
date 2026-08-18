@@ -22,11 +22,15 @@ voice:
   tts_voice_uz: "uz-UZ-MadinaNeural"
   tts_voice_ru: "ru-RU-SvetlanaNeural"
   tts_voice_en: "en-US-JennyNeural"
-  tts_rate: "+0%"
-  tts_volume: "+15%"
+  tts_rate: "-5%"
+  tts_volume: "+0%"
+  # Talaffuz to'g'irlash: TTS noto'g'ri o'qiydigan so'zni chapga,
+  # to'g'ri eshitiladigan yozuvini o'ngga yozing. Katta-kichik harf muhim emas.
+  pronunciation:
+    rafael: "Rafayel"
 
 ai:
-  model: "claude-opus-4-8"
+  model: "gpt-4o-mini"
   max_tokens: 512
   study_max_tokens: 700       # dars/o'qish yordami uchun uzunroq javob
   temperature: 0.7

@@ -5,6 +5,7 @@ Echo suppression: is_speaking flag active bo'lganda yozish to'xtatiladi.
 """
 
 import asyncio
+import tempfile
 import threading
 import time
 import os
@@ -16,7 +17,7 @@ from core.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-TMP_DIR = "D:\\tmp"
+TMP_DIR = os.path.join(tempfile.gettempdir(), "rafael")
 os.makedirs(TMP_DIR, exist_ok=True)
 
 

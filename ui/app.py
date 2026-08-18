@@ -7,12 +7,14 @@ Oyna: 520×720, dark futuristik, orb + tarix + status.
 import queue
 import threading
 import tkinter as tk
+from pathlib import Path
 from tkinter import font as tkfont
 
 from ui import theme
 from ui.components.orb import VoiceOrb
 from ui.components.history import HistoryPanel
 from ui.components.status_bar import StatusBar
+from ui.components.settings_window import SettingsWindow
 from core.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -105,6 +107,22 @@ class RafaelApp:
             cursor="hand2",
             command=self.root.iconify,
         ).pack(side=tk.RIGHT)
+
+        # Sozlamalar tugmasi
+        tk.Button(
+            header,
+            text="⚙",
+            font=theme.FONT_SMALL,
+            bg=theme.BG_GLASS,
+            fg=theme.TEXT_SECONDARY,
+            activebackground=theme.BG_HOVER,
+            activeforeground=theme.TEXT_PRIMARY,
+            relief=tk.FLAT,
+            bd=0,
+            padx=8,
+            cursor="hand2",
+            command=self._open_settings,
+        ).pack(side=tk.RIGHT, padx=(0, 6))
 
         # ── Ajratgich ─────────────────────────────────────────────────────
         tk.Frame(self.root, bg=theme.BORDER, height=1).pack(fill=tk.X, pady=(8, 0))
@@ -218,6 +236,12 @@ class RafaelApp:
 
         elif t == EVT_QUIT:
             self._on_close()
+
+    # ─── Sozlamalar ──────────────────────────────────────────────────────────
+
+    def _open_settings(self):
+        config_path = Path(__file__).resolve().parent.parent / "config.yaml"
+        SettingsWindow(self.root, config_path)
 
     # ─── Close ───────────────────────────────────────────────────────────────
 

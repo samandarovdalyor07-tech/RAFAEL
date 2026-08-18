@@ -6,7 +6,7 @@ Tasvirga asoslanib kod yozadi va faylga saqlaydi.
 import os
 import subprocess
 from pathlib import Path
-import anthropic
+import openai
 from core.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -19,20 +19,22 @@ Kod blokidan tashqari hech narsa yozma."""
 
 class CodeWriter:
     def __init__(self):
-        self.client = anthropic.Anthropic()
+        self.client = openai.OpenAI()
 
     def write_code(self, language: str, description: str, filename: str = None) -> dict:
         """Tasvirlangan kodni yozadi"""
         try:
             prompt = f"Yoz: {description}\nTil: {language}"
 
-            response = self.client.messages.create(
-                model="claude-opus-4-8",
+            response = self.client.chat.completions.create(
+                model="gpt-4o-mini",
                 max_tokens=4096,
-                system=CODE_SYSTEM,
-                messages=[{"role": "user", "content": prompt}],
+                messages=[
+                    {"role": "system", "content": CODE_SYSTEM},
+                    {"role": "user", "content": prompt},
+                ],
             )
-            code = response.content[0].text.strip()
+            code = response.choices[0].message.content.strip()
 
             # Kod bloklarni tozalaymiz
             if code.startswith("```"):

@@ -41,6 +41,17 @@ APP_PATHS = {
     "notepad++":   [r"C:\Program Files\Notepad++\notepad++.exe"],
 }
 
+# TTS chiroyli o'qishi uchun ilovalarning gapiriladigan nomlari
+SPOKEN_NAMES = {
+    "chrome": "Chrome", "firefox": "Firefox", "edge": "Edge",
+    "vscode": "VS Code", "telegram": "Telegram", "spotify": "Spotify",
+    "notepad": "Bloknot", "calculator": "Kalkulyator",
+    "explorer": "Fayl menejeri", "taskmgr": "Vazifa menejeri",
+    "cmd": "Buyruq satri", "powershell": "PowerShell", "terminal": "Terminal",
+    "word": "Word", "excel": "Excel", "vlc": "VLC",
+    "notepad++": "Notepad Plus Plus",
+}
+
 NAME_MAP = {
     "xrom":"chrome","xrome":"chrome","brauzer":"chrome","google":"chrome",
     "firefox":"firefox","edge":"edge",
@@ -76,13 +87,15 @@ class SystemController:
         name = app_name.lower().strip()
         name = NAME_MAP.get(name, name)
 
+        pretty = SPOKEN_NAMES.get(name, app_name)
+
         # 1. Haqiqiy EXE topib ishga tushirish
         exe = _find_exe(name)
         if exe:
             try:
                 subprocess.Popen([exe], shell=False)
                 logger.info(f"Ochildi: {exe}")
-                return f"{app_name} ochildi."
+                return f"{pretty} ochildi"
             except Exception as e:
                 logger.warning(f"Popen xato: {e}")
 
@@ -91,7 +104,7 @@ class SystemController:
             try:
                 os.startfile(name)
                 logger.info(f"startfile: {name}")
-                return f"{app_name} ochildi."
+                return f"{pretty} ochildi"
             except Exception as e:
                 logger.warning(f"startfile xato: {e}")
 
@@ -99,44 +112,47 @@ class SystemController:
         if name in WEB_APPS:
             webbrowser.open(WEB_APPS[name])
             logger.info(f"Web ochildi: {WEB_APPS[name]}")
-            return f"{app_name} brauzerda ochildi."
+            return f"{pretty}ni brauzerdan ochib berdim"
 
         # 4. Rostini ayt — topilmadi (YOLG'ON 'ochildi' DEMAYMIZ)
         logger.warning(f"Ilova topilmadi: {app_name} ({name})")
-        return f"Kechirasiz, {app_name} ilovasini topa olmadim."
+        return f"kechirasiz, {pretty}ni topa olmadim"
 
     def close_app(self, app_name: str) -> str:
         name = NAME_MAP.get(app_name.lower().strip(), app_name.lower())
-        closed = []
+        closed = set()
         for proc in psutil.process_iter(["name", "pid"]):
             try:
                 pname = proc.info["name"].lower()
                 if name in pname or pname.startswith(name[:5]):
                     proc.terminate()
-                    closed.append(proc.info["name"])
+                    closed.add(proc.info["name"])
             except Exception:
                 pass
-        return f"{set(closed)} yopildi." if closed else f"{app_name} topilmadi."
+        pretty = SPOKEN_NAMES.get(name, app_name)
+        if not closed:
+            return f"{pretty} ochiq emas ekan"
+        return f"{pretty} yopildi"
 
     def shutdown(self) -> str:
         subprocess.run("shutdown /s /t 3", shell=True)
-        return "Noutbuk 3 soniyadan keyin o'chadi."
+        return "noutbuk uch soniyadan keyin o'chadi"
 
     def restart(self) -> str:
         subprocess.run("shutdown /r /t 3", shell=True)
-        return "Noutbuk qayta ishga tushadi."
+        return "noutbukni qayta ishga tushiryapman"
 
     def sleep(self) -> str:
         subprocess.run("rundll32.exe powrprof.dll,SetSuspendState 0,1,0", shell=True)
-        return "Uxlash rejimi."
+        return "uxlash rejimiga o'tkazdim"
 
     def lock(self) -> str:
         subprocess.run("rundll32.exe user32.dll,LockWorkStation", shell=True)
-        return "Ekran qulflandi."
+        return "ekranni qulfladim"
 
     def cancel_shutdown(self) -> str:
         subprocess.run("shutdown /a", shell=True)
-        return "O'chirish bekor qilindi."
+        return "o'chirishni bekor qildim"
 
     def create_file(self, path: str, content: str = "") -> str:
         try:

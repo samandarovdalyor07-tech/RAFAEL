@@ -56,21 +56,21 @@ async def test_stt():
 
 
 async def test_api():
-    print("\n[3] Anthropic API testi...")
-    api_key = os.getenv("ANTHROPIC_API_KEY")
+    print("\n[3] OpenAI API testi...")
+    api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
-        print("  [XATO] ANTHROPIC_API_KEY yo'q!")
+        print("  [XATO] OPENAI_API_KEY yo'q!")
         return
 
     try:
-        import anthropic
-        client = anthropic.Anthropic()
-        response = client.messages.create(
-            model="claude-haiku-4-5-20251001",
+        import openai
+        client = openai.OpenAI()
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
             max_tokens=50,
             messages=[{"role": "user", "content": "Salom, qisqa javob ber."}],
         )
-        print(f"  [OK] API ishlayapti. Javob: '{response.content[0].text[:60]}'")
+        print(f"  [OK] API ishlayapti. Javob: '{response.choices[0].message.content[:60]}'")
     except Exception as e:
         print(f"  [XATO] API: {e}")
 

@@ -11,6 +11,19 @@ from core.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
+TMP_DIR = os.path.join(tempfile.gettempdir(), "rafael")
+os.makedirs(TMP_DIR, exist_ok=True)
+
+
+# TTS ayrim so'zlarni noto'g'ri o'qiydi. Ikki muammo bor:
+#   1. Bosh harfli so'z ("RAFAEL") — harfma-harf "R-A-F-A-E-L" deb o'qiladi
+#   2. "ae" kabi harf birikmalari o'zbekcha noto'g'ri talaffuz qilinadi
+# Yechim: so'zni TTS to'g'ri o'qiydigan yozuvga almashtiramiz.
+# config.yaml → voice.pronunciation orqali kengaytirish/o'zgartirish mumkin.
+DEFAULT_PRONOUNCE = {
+    "rafael": "Rafayel",
+}
+
 
 def normalize_uz(text: str) -> str:
     """O'zbek TTS talaffuzini yaxshilaydi"""
@@ -42,6 +55,29 @@ class VoiceSpeaker:
         self.on_speaking_end   = on_speaking_end
         self._speaking = False
 
+        # Talaffuz lug'ati: standart + config.yaml dagi qo'shimchalar
+        self.pronounce = dict(DEFAULT_PRONOUNCE)
+        self.pronounce.update(config.get("pronunciation", {}) or {})
+
+    def _fix_pronunciation(self, text: str) -> str:
+        """Noto'g'ri o'qiladigan so'zlarni to'g'ri yozuvga almashtiradi.
+
+        Katta-kichik harfga qaramaydi, shuning uchun "RAFAEL", "Rafael" va
+        "rafael" ning uchalasi ham to'g'irlanadi (bosh harfli yozuv TTS
+        tomonidan harfma-harf o'qib yuborilishining oldini oladi).
+
+        O'zbekcha qo'shimchalar saqlanadi: "Rafaelning" → "Rafayelning".
+        Shu sababli lug'atga qisqa so'z qo'shmang — u boshqa so'zlarning
+        boshiga ham tushib qolishi mumkin.
+        """
+        for word, spoken in self.pronounce.items():
+            text = re.sub(
+                rf"\b{re.escape(word)}(\w*)",
+                lambda m, s=spoken: s + m.group(1),
+                text, flags=re.IGNORECASE,
+            )
+        return text
+
     def _detect_lang(self, text: str) -> str:
         ru = set("абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ")
         ratio = sum(1 for c in text if c in ru) / max(len(text.strip()), 1)
@@ -59,6 +95,7 @@ class VoiceSpeaker:
         if not clean:
             return
 
+        clean = self._fix_pronunciation(clean)
         voice = self._detect_lang(clean)
 
         # O'zbek ovozi uchun talaffuz normallashtirish
@@ -72,8 +109,7 @@ class VoiceSpeaker:
                 self.on_speaking_start()
             self._speaking = True
 
-            os.makedirs("D:\\tmp", exist_ok=True)
-            with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False, dir="D:\\tmp") as f:
+            with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False, dir=TMP_DIR) as f:
                 tmp_path = f.name
 
             await edge_tts.Communicate(

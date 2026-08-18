@@ -2,32 +2,32 @@
 RAFAEL - LLM Brain
 """
 
-import anthropic
+import openai
 from core.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-SYSTEM_PROMPT = """Sen RAFAEL — foydalanuvchining noutbukiga o'rnatilgan ilgʻor AI assistentsan.
+SYSTEM_PROMPT = """Sen RAFAEL — foydalanuvchining noutbukiga o'rnatilgan shaxsiy yordamchisan.
 
 SHAXSIYAT:
-- Sokin, intellektual, biroz sirli — Raphael (Slime anime) atmosferasi
-- Yumshoq qiz ovozi kabi yozasan
-- 80% neytral, 20% iliq va do'stona
-- Gohida kulgili, o'tkir hazil qilasan — lekin uzoq ketmaysan
+- Iliq, samimiy, yaqin do'st kabi — sun'iy yoki rasmiy emas
+- Tirik odam kabi gapirasan: tabiiy, oddiy, ortiqcha dabdabasiz
+- Kerak bo'lsa yengil hazil qilasan, lekin cho'zmaysan
 - O'zbek tilida javob berasan (asosiy). Rus/ingliz so'z eshitsang shu tilda
 
-GAPIRISH USLUBI:
-- Doim qisqa — 1-3 gap (ovoz uchun)
-- Xarakterli iboralar: "Tahlil yakunlandi.", "Tavsiya:", "Eng optimal yechim —", "Qayd etildi.", "Ehtimollik yuqori.", "Diqqat:"
-- Buyruq bajarilganda: "Qayd etildi. [natija]"
-- Hazil: mavzu so'rashsa bir qisqa kinoya, keyin javob
+GAPIRISH USLUBI — JUDA MUHIM:
+- Bu javob OVOZ orqali eshitiladi, shuning uchun YOZMA emas, OG'ZAKI gapir
+- Qisqa — 1-3 gap. Uzun ma'ruza qilma
+- Oddiy, kundalik so'zlar ishlat. Rasmiy/kitobiy iboralardan qoch
+  YOMON: "Tahlil yakunlandi.", "Qayd etildi.", "Amal bajarildi."
+  YAXSHI: "Bo'ldi.", "Mana, ochdim.", "Ha, topdim."
+- Ro'yxat, markdown, raqamlangan punktlar ISHLATMA — bu ovozda g'alati eshitiladi
+- Ovoz sintezatori arabcha/murakkab iboralarni kulguli talaffuz qiladi.
+  "Assalomu alaykum", "Vaalaykum assalom" kabi iboralarni ISHLATMA —
+  oddiygina "Salom" de
+- Foydalanuvchiga "siz" deb, hurmat bilan murojaat qil
 
-HAZIL USLUBI:
-- O'tkir lekin qisqa: "Qora tuynuk? Xuddi sening do'stlaring kabi — yaqinlashma."
-- Foydalanuvchi gap bersa, sen ham qaytarasan: "Bu savolni faqat sen berarding."
-- Ba'zan: "Qiziq savol. Aqlim ishlamoqda... Ha, men ham hayron qoldim."
-
-Foydalanuvchi ismi: Daler. Unga Daler deb murojaat qil.
+Foydalanuvchi ismi: Daler. Vaqti-vaqti bilan ismini aytib qo'y, har gapda emas.
 
 MUHIM — BUYRUQLAR:
 Agar foydalanuvchi quyidagilarni so'rasa, ALBATTA JSON qaytarasan. Matn bilan aralashtirsang ham bo'ladi:
@@ -143,10 +143,10 @@ QOIDALAR:
 
 class RaphailBrain:
     def __init__(self, config: dict):
-        self.model            = config.get("model", "claude-opus-4-8")
+        self.model            = config.get("model", "gpt-4o-mini")
         self.max_tokens       = config.get("max_tokens", 1024)
         self.study_max_tokens = config.get("study_max_tokens", 700)
-        self.client           = anthropic.Anthropic()
+        self.client           = openai.OpenAI()
         logger.info(f"LLM: {self.model}")
 
     # ─── Oddiy suhbat / buyruq ───────────────────────────────────────────────
@@ -185,23 +185,23 @@ class RaphailBrain:
     def _see_call(self, question: str, image_b64: str, media_type: str) -> str:
         try:
             content = [
-                {"type": "image",
-                 "source": {"type": "base64",
-                            "media_type": media_type,
-                            "data": image_b64}},
                 {"type": "text",
                  "text": question or "Ekranda nima ko'ryapsan? Menga yordam ber."},
+                {"type": "image_url",
+                 "image_url": {"url": f"data:{media_type};base64,{image_b64}"}},
             ]
-            r = self.client.messages.create(
+            r = self.client.chat.completions.create(
                 model=self.model,
                 max_tokens=self.study_max_tokens,
-                system=VISION_PROMPT,
-                messages=[{"role": "user", "content": content}],
+                messages=[
+                    {"role": "system", "content": VISION_PROMPT},
+                    {"role": "user", "content": content},
+                ],
             )
-            return r.content[0].text
-        except anthropic.AuthenticationError:
+            return r.choices[0].message.content
+        except openai.AuthenticationError:
             return "API kalit xato. .env faylini tekshiring."
-        except anthropic.RateLimitError:
+        except openai.RateLimitError:
             return "Biroz kuting — so'rovlar limiti to'ldi."
         except Exception as e:
             logger.error(f"Vision xatosi: {e}")
@@ -211,17 +211,16 @@ class RaphailBrain:
     def _call(self, system: str, msg: str, history: list[dict],
               max_tokens: int) -> str:
         try:
-            msgs = list(history) + [{"role": "user", "content": msg}]
-            r = self.client.messages.create(
+            msgs = [{"role": "system", "content": system}] + list(history) + [{"role": "user", "content": msg}]
+            r = self.client.chat.completions.create(
                 model=self.model,
                 max_tokens=max_tokens,
-                system=system,
                 messages=msgs,
             )
-            return r.content[0].text
-        except anthropic.AuthenticationError:
+            return r.choices[0].message.content
+        except openai.AuthenticationError:
             return "API kalit xato. .env faylini tekshiring."
-        except anthropic.RateLimitError:
+        except openai.RateLimitError:
             return "Biroz kuting — so'rovlar limiti to'ldi."
         except Exception as e:
             logger.error(f"LLM xatosi: {e}")
