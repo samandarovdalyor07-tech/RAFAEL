@@ -107,16 +107,21 @@ class SystemController:
 
     def close_app(self, app_name: str) -> str:
         name = NAME_MAP.get(app_name.lower().strip(), app_name.lower())
-        closed = []
+        closed = set()
         for proc in psutil.process_iter(["name", "pid"]):
             try:
                 pname = proc.info["name"].lower()
                 if name in pname or pname.startswith(name[:5]):
                     proc.terminate()
-                    closed.append(proc.info["name"])
+                    closed.add(proc.info["name"])
             except Exception:
                 pass
-        return f"{set(closed)} yopildi." if closed else f"{app_name} topilmadi."
+        if not closed:
+            return f"{app_name} topilmadi."
+        # Gapirilganda ".exe" va Python set sintaksisi eshitilmasligi uchun
+        # xom process nomlarini tozalab, oddiy ro'yxat sifatida qaytaramiz.
+        names = ", ".join(sorted(n.removesuffix(".exe") for n in closed))
+        return f"{names} yopildi."
 
     def shutdown(self) -> str:
         subprocess.run("shutdown /s /t 3", shell=True)
