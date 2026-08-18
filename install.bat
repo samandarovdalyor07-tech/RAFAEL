@@ -70,7 +70,7 @@ echo.
 if not exist .env (
     copy .env.example .env >nul
     echo [DIQQAT] .env fayl yaratildi!
-    echo .env faylini oching va ANTHROPIC_API_KEY ni kiriting.
+    echo .env faylini oching va OPENAI_API_KEY ni kiriting.
     notepad .env
 ) else (
     echo [OK] .env fayl mavjud.

@@ -145,7 +145,7 @@ class SettingsWindow(tk.Toplevel):
                     voice.get("tts_voice_uz", "uz-UZ-MadinaNeural"))
 
         self._section(self, "AI")
-        self._field(self, "Model", "ai_model", ai.get("model", "claude-opus-4-8"))
+        self._field(self, "Model", "ai_model", ai.get("model", "gpt-4o-mini"))
         self._field(self, "Temperature", "ai_temperature", ai.get("temperature", 0.7))
 
         self._section(self, "Suhbat")

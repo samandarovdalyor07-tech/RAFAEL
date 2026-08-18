@@ -2,7 +2,7 @@
 RAFAEL - LLM Brain
 """
 
-import anthropic
+import openai
 from core.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -143,10 +143,10 @@ QOIDALAR:
 
 class RaphailBrain:
     def __init__(self, config: dict):
-        self.model            = config.get("model", "claude-opus-4-8")
+        self.model            = config.get("model", "gpt-4o-mini")
         self.max_tokens       = config.get("max_tokens", 1024)
         self.study_max_tokens = config.get("study_max_tokens", 700)
-        self.client           = anthropic.Anthropic()
+        self.client           = openai.OpenAI()
         logger.info(f"LLM: {self.model}")
 
     # ─── Oddiy suhbat / buyruq ───────────────────────────────────────────────
@@ -185,23 +185,23 @@ class RaphailBrain:
     def _see_call(self, question: str, image_b64: str, media_type: str) -> str:
         try:
             content = [
-                {"type": "image",
-                 "source": {"type": "base64",
-                            "media_type": media_type,
-                            "data": image_b64}},
                 {"type": "text",
                  "text": question or "Ekranda nima ko'ryapsan? Menga yordam ber."},
+                {"type": "image_url",
+                 "image_url": {"url": f"data:{media_type};base64,{image_b64}"}},
             ]
-            r = self.client.messages.create(
+            r = self.client.chat.completions.create(
                 model=self.model,
                 max_tokens=self.study_max_tokens,
-                system=VISION_PROMPT,
-                messages=[{"role": "user", "content": content}],
+                messages=[
+                    {"role": "system", "content": VISION_PROMPT},
+                    {"role": "user", "content": content},
+                ],
             )
-            return r.content[0].text
-        except anthropic.AuthenticationError:
+            return r.choices[0].message.content
+        except openai.AuthenticationError:
             return "API kalit xato. .env faylini tekshiring."
-        except anthropic.RateLimitError:
+        except openai.RateLimitError:
             return "Biroz kuting — so'rovlar limiti to'ldi."
         except Exception as e:
             logger.error(f"Vision xatosi: {e}")
@@ -211,17 +211,16 @@ class RaphailBrain:
     def _call(self, system: str, msg: str, history: list[dict],
               max_tokens: int) -> str:
         try:
-            msgs = list(history) + [{"role": "user", "content": msg}]
-            r = self.client.messages.create(
+            msgs = [{"role": "system", "content": system}] + list(history) + [{"role": "user", "content": msg}]
+            r = self.client.chat.completions.create(
                 model=self.model,
                 max_tokens=max_tokens,
-                system=system,
                 messages=msgs,
             )
-            return r.content[0].text
-        except anthropic.AuthenticationError:
+            return r.choices[0].message.content
+        except openai.AuthenticationError:
             return "API kalit xato. .env faylini tekshiring."
-        except anthropic.RateLimitError:
+        except openai.RateLimitError:
             return "Biroz kuting — so'rovlar limiti to'ldi."
         except Exception as e:
             logger.error(f"LLM xatosi: {e}")

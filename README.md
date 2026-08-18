@@ -37,7 +37,7 @@ RAFAEL — bu noutbukingizni **ovoz** orqali boshqaradigan AI assistent. "Rafael
 - Windows 10/11
 - Python 3.11+ ([python.org](https://www.python.org/downloads/))
 - Mikrofon + internet
-- Anthropic API kalit ([console.anthropic.com](https://console.anthropic.com))
+- OpenAI API kalit ([platform.openai.com](https://platform.openai.com))
 
 ### 2. O'rnatish
 ```bash
@@ -49,7 +49,7 @@ pip install -r requirements.txt
 ### 3. API kalit
 `.env` fayl yarating (`.env.example` dan nusxa oling):
 ```
-ANTHROPIC_API_KEY=sk-ant-api03-...
+OPENAI_API_KEY=sk-...
 ```
 
 ### 4. Ishga tushirish
@@ -119,7 +119,7 @@ RAFAEL salomlashadi va "Rafael" so'zini kutadi. Sinab ko'ring:
 | Backend | asyncio + threading |
 | STT (ovoz→matn) | faster-whisper (offline, `uz`) + Google (zaxira) |
 | TTS (matn→ovoz) | edge-tts (uz-UZ-MadinaNeural) |
-| AI | Anthropic Claude (`claude-opus-4-8`) |
+| AI | OpenAI (`gpt-4o-mini`) |
 | Xotira | JSON (suhbat tarixi) |
 | Tizim | pywin32, ctypes, subprocess, pyautogui |
 
@@ -182,7 +182,7 @@ voice:
   tts_voice_uz: "uz-UZ-MadinaNeural"
 
 ai:
-  model: "claude-opus-4-8"
+  model: "gpt-4o-mini"
   context_window: 20              # Eslab qoladigan xabarlar soni
 
 ui:
@@ -219,7 +219,7 @@ python -m pytest tests/ -v
 | Muammo | Yechim |
 |--------|--------|
 | Oyna chiqmaydi | `python main.py` ni terminalda ishga tushiring, xatoni ko'ring |
-| "API kalit topilmadi" | `.env` faylda `ANTHROPIC_API_KEY=sk-ant-...` borligini tekshiring |
+| "API kalit topilmadi" | `.env` faylda `OPENAI_API_KEY=sk-...` borligini tekshiring |
 | Ovoz eshitilmaydi | Mikrofon ulanganini, `silence_threshold` ni tekshiring |
 | Buyruq bajarilmaydi | `logs/raphail.log` ni o'qing — parser nima topganini ko'ring |
 
