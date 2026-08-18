@@ -247,10 +247,12 @@ class RaphailAssistant:
         self.running = True
         self.reminders.start()
 
+        # Diqqat: bu matn OVOZ orqali eshitiladi. TTS murakkab/arabcha
+        # iboralarni ("Assalomu alaykum") kulguli talaffuz qiladi —
+        # shuning uchun oddiy, kundalik so'zlardan foydalanamiz.
         greeting = (
-            f"Assalomu alaykum, {self.user}! Men tayyorman. "
-            f"Bugun nima qilamiz?"
-        ) if self.user else "Salom! Men RAFAEL, tayyorman."
+            f"Salom, {self.user}! Men tayyorman. Bugun nima qilamiz?"
+        ) if self.user else "Salom! Men tayyorman."
 
         self._emit("system", text="RAFAEL ishga tushdi.")
         await self._speak_and_emit(greeting)
