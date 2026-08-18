@@ -24,6 +24,10 @@ voice:
   tts_voice_en: "en-US-JennyNeural"
   tts_rate: "-5%"
   tts_volume: "+0%"
+  # Talaffuz to'g'irlash: TTS noto'g'ri o'qiydigan so'zni chapga,
+  # to'g'ri eshitiladigan yozuvini o'ngga yozing. Katta-kichik harf muhim emas.
+  pronunciation:
+    rafael: "Rafayel"
 
 ai:
   model: "gpt-4o-mini"
