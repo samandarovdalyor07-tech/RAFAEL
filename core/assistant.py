@@ -32,12 +32,12 @@ logger = get_logger(__name__)
 
 # ── Javob iboralari ──────────────────────────────────────────────────────────
 CONFIRMS = [
-    "Hop bo'ladi, janob.",
-    "Bajarildi, janob.",
-    "Darhol, janob.",
-    "Xo'p bo'ladi.",
-    "Tayyor, janob.",
-    "Qayd etildi.",
+    "Mayli",
+    "Bo'ldi",
+    "Ha, mana",
+    "Hozir",
+    "Tayyor",
+    "Xo'p",
 ]
 _ci = 0
 def _confirm() -> str:
@@ -45,6 +45,17 @@ def _confirm() -> str:
     msg = CONFIRMS[_ci % len(CONFIRMS)]
     _ci += 1
     return msg
+
+def _compose(replies: list[str]) -> str:
+    """Tasdiq + amal natijalarini tabiiy gapga birlashtiradi.
+
+    Natijalar kichik harf bilan, nuqtasiz qaytariladi ("Chrome ochildi"),
+    shuning uchun ularni vergul bilan ulaymiz: "Mayli, Chrome ochildi."
+    """
+    done = [r.strip().rstrip(".") for r in replies if r and r.strip()]
+    if not done:
+        return _confirm() + "."
+    return f"{_confirm()}, " + ", ".join(done) + "."
 
 REMINDER_WORDS = [
     "eslatib tur","eslatib ber","eslat","eslatma qo'y",
@@ -237,9 +248,9 @@ class RaphailAssistant:
         self.reminders.start()
 
         greeting = (
-            f"Salom {self.user}! Men RAFAEL. "
-            f"Bugun nima qilamiz — proekt qilamizmi yoki dars?"
-        ) if self.user else "Tizim faollashtirildi. Men RAFAEL."
+            f"Assalomu alaykum, {self.user}! Men tayyorman. "
+            f"Bugun nima qilamiz?"
+        ) if self.user else "Salom! Men RAFAEL, tayyorman."
 
         self._emit("system", text="RAFAEL ishga tushdi.")
         await self._speak_and_emit(greeting)
@@ -268,7 +279,7 @@ class RaphailAssistant:
                     await self._process(cleaned)
                 else:
                     # Faqat "Rafael" deyildi → buyruqni follow-up kutadi
-                    reply = f"Ha, {self.user}." if self.user else "Tinglamoqdaman."
+                    reply = f"Labbay, {self.user}?" if self.user else "Eshitaman?"
                     await self._speak_and_emit(reply)
 
                 # Tabiiy suhbat — har safar "Rafael" demasdan davom etish
@@ -299,8 +310,8 @@ class RaphailAssistant:
 
         # 1. TO'XTATISH
         if is_stop_command(text):
-            msg = (f"Xayr, {self.user}. Tizim uxlash rejimiga o'tdi."
-                   if self.user else "Tizim to'xtatildi.")
+            msg = (f"Xo'p, {self.user}. Kerak bo'lsam chaqirasiz."
+                   if self.user else "Xo'p, chaqirsangiz shu yerdaman.")
             await self._speak_and_emit(msg)
             self.running = False
             return
@@ -324,7 +335,7 @@ class RaphailAssistant:
         if _is_reminder(text):
             self._set_state("thinking")
             result = self.reminders.add(text)
-            reply  = f"{_confirm()} {result}"
+            reply  = _compose([result])
             self._emit("cmd", action="reminder", detail=result)
             await self._speak_and_emit(reply)
             return
@@ -382,7 +393,7 @@ class RaphailAssistant:
                 result = await self._execute(cmd)
                 if result:
                     replies.append(result)
-            reply = f"{_confirm()} " + ". ".join(replies) if replies else _confirm()
+            reply = _compose(replies)
             self.memory.add_user(text)
             self.memory.add_assistant(reply)
             await self._speak_and_emit(reply)
@@ -402,7 +413,7 @@ class RaphailAssistant:
                     result = await self._execute(cmd)
                     if result:
                         replies.append(result)
-                reply = f"{_confirm()} " + ". ".join(replies) if replies else _confirm()
+                reply = _compose(replies)
                 self.memory.add_user(text)
                 self.memory.add_assistant(reply)
                 await self._speak_and_emit(reply)
@@ -418,8 +429,7 @@ class RaphailAssistant:
         if llm_cmd:
             self._emit("cmd", action=llm_cmd.get("action",""), detail=str(llm_cmd))
             result = await self._execute(llm_cmd)
-            reply  = (f"{_confirm()} {result}".strip()
-                      if result else _confirm())
+            reply  = _compose([result])
         else:
             reply = response
 

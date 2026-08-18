@@ -22,8 +22,8 @@ voice:
   tts_voice_uz: "uz-UZ-MadinaNeural"
   tts_voice_ru: "ru-RU-SvetlanaNeural"
   tts_voice_en: "en-US-JennyNeural"
-  tts_rate: "+0%"
-  tts_volume: "+15%"
+  tts_rate: "-5%"
+  tts_volume: "+0%"
 
 ai:
   model: "gpt-4o-mini"

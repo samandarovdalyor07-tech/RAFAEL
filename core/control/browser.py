@@ -18,6 +18,16 @@ ENGINES = {
     "yandex_images": "https://yandex.ru/images/search?text=",
 }
 
+# TTS chiroyli o'qishi uchun ko'rsatiladigan nomlar
+ENGINE_NAMES = {
+    "google":        "Google",
+    "yandex":        "Yandeks",
+    "youtube":       "YouTube",
+    "yandex_music":  "Yandeks Muzika",
+    "yandex_video":  "Yandeks Video",
+    "yandex_images": "Yandeks Rasmlar",
+}
+
 SITES = {
     "google":       "https://www.google.com",
     "yandex":       "https://yandex.ru",
@@ -32,6 +42,18 @@ SITES = {
     "wikipedia":    "https://uz.wikipedia.org",
 }
 
+SITE_NAMES = {
+    "google":       "Google",
+    "yandex":       "Yandeks",
+    "youtube":      "YouTube",
+    "yandex music": "Yandeks Muzika",
+    "github":       "GitHub",
+    "gmail":        "Gmail",
+    "telegram web": "Telegram",
+    "chatgpt":      "ChatGPT",
+    "wikipedia":    "Vikipediya",
+}
+
 
 class BrowserController:
     def open_url(self, url: str) -> str:
@@ -39,7 +61,7 @@ class BrowserController:
             url = "https://" + url
         webbrowser.open(url)
         logger.info(f"URL: {url}")
-        return f"Ochildi."
+        return "ochib berdim"
 
     def search(self, query: str, engine: str = "google") -> str:
         """Istalgan qidiruv tizimida qidiradi"""
@@ -47,7 +69,7 @@ class BrowserController:
         url = base + urllib.parse.quote(query)
         webbrowser.open(url)
         logger.info(f"{engine} qidiruv: {query}")
-        return f"{engine.capitalize()} da qidirildi: {query}"
+        return f"{ENGINE_NAMES.get(engine.lower(), engine)}dan qidirib berdim"
 
     def search_web(self, query: str) -> str:
         return self.search(query, "google")
@@ -68,20 +90,20 @@ class BrowserController:
         if query:
             return self.search(query, "yandex_music")
         webbrowser.open("https://music.yandex.ru")
-        return "Yandex Music ochildi."
+        return "Yandeks Muzikani ochdim"
 
     def open_youtube(self, query: str = None) -> str:
         if query:
             return self.search(query, "youtube")
         webbrowser.open("https://www.youtube.com")
-        return "YouTube ochildi."
+        return "YouTube ochildi"
 
     def open_site(self, site: str) -> str:
         """Mashhur saytlarni ochadi"""
         url = SITES.get(site.lower())
         if url:
             webbrowser.open(url)
-            return f"{site} ochildi."
+            return f"{SITE_NAMES.get(site.lower(), site)}ni ochdim"
         return self.open_url(site)
 
     def search_video(self, query: str) -> str:
