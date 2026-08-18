@@ -36,49 +36,41 @@ class BluetoothController:
         return devices
 
     def connect_device(self, device_name: str) -> str:
-        """Qurilmaga ulanadi (juftlashtirilgan bo'lishi kerak)"""
+        """Qurilmaga ulanadi (juftlashtirilgan bo'lishi kerak).
+
+        disconnect_device Disable-PnpDevice ishlatgani kabi, bu yerda ham
+        Enable-PnpDevice bilan haqiqiy ulanish urinilinadi (avval faqat
+        qurilma nomi topilgan-topilmaganini tekshirib, hech narsa ulamas edi).
+        """
         logger.info(f"Bluetooth ulanish: {device_name}")
 
-        # Avval mavjud qurilmalarni topamiz
-        ps_script = f"""
-Add-Type -AssemblyName System.Runtime.WindowsRuntime
-$null = [Windows.Devices.Enumeration.DeviceInformation,Windows.Devices.Enumeration,ContentType=WindowsRuntime]
-$devices = [Windows.Devices.Enumeration.DeviceInformation]::FindAllAsync(
-    [Windows.Devices.Bluetooth.BluetoothDevice]::GetDeviceSelectorFromPairingState($true)
-) | Foreach-Object {{ $_.GetAwaiter().GetResult() }}
-$target = $devices | Where-Object {{ $_.Name -like '*{device_name}*' }} | Select-Object -First 1
-if ($target) {{
-    Write-Output $target.Name
-}} else {{
+        ps = f"""
+$dev = Get-PnpDevice -Class Bluetooth | Where-Object {{ $_.FriendlyName -like '*{device_name}*' }} | Select-Object -First 1
+if (-not $dev) {{
     Write-Output 'NOT_FOUND'
-}}
-"""
-        result = _ps(ps_script)
-
-        if "NOT_FOUND" in result or not result.strip():
-            # Fallback: settings ochib tavsiya beramiz
-            self.open_settings()
-            return f"{device_name} topilmadi. Bluetooth sozlamalari ochildi — qo'lda ulang."
-
-        # Topildi — audio qurilma sifatida default qilamiz
-        ps_connect = f"""
-$deviceName = "{device_name}"
-$devices = Get-PnpDevice -Class AudioEndpoint | Where-Object {{ $_.FriendlyName -like "*$deviceName*" }}
-if ($devices) {{
-    Write-Output "Connected: $($devices.FriendlyName)"
 }} else {{
-    Write-Output "Audio endpoint topilmadi"
+    if ($dev.Status -ne 'OK') {{
+        Enable-PnpDevice -InstanceId $dev.InstanceId -Confirm:$false -ErrorAction SilentlyContinue
+        Start-Sleep -Milliseconds 800
+        $dev = Get-PnpDevice -InstanceId $dev.InstanceId
+    }}
+    Write-Output "$($dev.FriendlyName)|$($dev.Status)"
 }}
 """
-        res2 = _ps(ps_connect)
-        logger.info(f"BT result: {res2}")
+        result = _ps(ps).strip()
 
-        if "Connected" in res2:
-            return f"{result.strip()} ga ulandi."
+        if "NOT_FOUND" in result or not result:
+            self.open_settings()
+            return f"{device_name} juftlashtirilgan qurilmalar orasida topilmadi. Bluetooth sozlamalari ochildi — qo'lda ulang."
 
-        # VBScript orqali audio device ni default qilish
+        found_name, _, status = result.rpartition("|")
+        found_name = found_name or device_name
+
+        if status == "OK":
+            return f"{found_name} ga ulandi."
+
         self.open_settings()
-        return f"Bluetooth sozlamalari ochildi. {device_name} ni bosib ulang."
+        return f"{found_name} topildi, lekin avtomatik ulanmadi. Bluetooth sozlamalari ochildi — qo'lda ulang."
 
     def disconnect_device(self, device_name: str) -> str:
         """Qurilmani uzadi"""

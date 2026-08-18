@@ -11,6 +11,9 @@ from core.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
+TMP_DIR = os.path.join(tempfile.gettempdir(), "rafael")
+os.makedirs(TMP_DIR, exist_ok=True)
+
 
 def normalize_uz(text: str) -> str:
     """O'zbek TTS talaffuzini yaxshilaydi"""
@@ -72,8 +75,7 @@ class VoiceSpeaker:
                 self.on_speaking_start()
             self._speaking = True
 
-            os.makedirs("D:\\tmp", exist_ok=True)
-            with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False, dir="D:\\tmp") as f:
+            with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False, dir=TMP_DIR) as f:
                 tmp_path = f.name
 
             await edge_tts.Communicate(
